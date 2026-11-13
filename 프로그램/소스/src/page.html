@@ -204,17 +204,58 @@ select.in{appearance:auto}
 .quick .btn{flex-direction:column;align-items:flex-start;text-align:left;gap:2px;min-height:64px}
 .quick .btn small{font-weight:500;color:var(--ink2);font-size:.86rem}
 /* v4: 표에 바로 적기 (종이 일지처럼 한 줄씩) */
-tr.entry td{background:var(--soon-bg);vertical-align:top;white-space:normal}
-tr.entry .in{min-height:42px;padding:4px 8px;font-size:.95rem}
-tr.entry .in.k{width:92px;text-align:right;font-variant-numeric:tabular-nums}
-tr.entry .in.t{width:104px} tr.entry .in.d{width:148px} tr.entry .in.n{width:110px} tr.entry .in.s{width:64px;text-align:center}
-tr.entry label{display:flex;gap:6px;align-items:center;font-size:.9rem;font-weight:500;margin-top:6px;white-space:nowrap}
-tr.entry input[type=checkbox]{width:20px;height:20px;accent-color:var(--navy)}
 .entryhelp{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
 .credit{text-align:center;color:var(--ink2);font-size:.85rem;padding:18px 0 8px;border-top:1px solid var(--line)}
-/* 시간 고르기 (시 + 5분 단위 분) */
-.tsel{display:flex;gap:8px} .tsel select{flex:1;min-width:0}
-tr.entry .tsel{flex-direction:column;gap:6px;width:116px} tr.entry .tsel select{width:100%}
+/* 시간 고르기: [오전][오후] → 시 → 분(5분 단위). 다음에 고를 칸은 노란 테두리 + 깜박이는 커서 */
+.tsel{display:flex;flex-direction:column;gap:8px;padding:10px;border:2px solid var(--line);border-radius:14px;background:var(--surface)}
+.tsel.done{border-color:var(--ok)}
+.ampm{display:grid;grid-template-columns:1fr 1fr;gap:6px;border-radius:12px}
+.ampm button{min-height:50px;border:2px solid var(--line);border-radius:12px;background:var(--surface);font-size:1.1rem;font-weight:700;cursor:pointer;color:var(--ink2)}
+.ampm button[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:var(--navy-ink)}
+.hm{display:flex;align-items:center;gap:6px}
+.hm .slot{flex:1;min-width:0;position:relative;display:block;border-radius:12px}
+.hm select{width:100%;min-height:52px;font-size:1.15rem;font-weight:700;font-variant-numeric:tabular-nums}
+.hm .colon{font-size:1.4rem;color:var(--ink2)}
+.tsel .next{box-shadow:0 0 0 3px var(--bus)}
+.hm .slot.next select{padding-left:30px;border-color:var(--bus)}
+.hm .slot.next::before{content:"";position:absolute;left:14px;top:50%;width:2px;height:24px;margin-top:-12px;background:var(--ink);pointer-events:none;z-index:1}
+.thint{font-size:.92rem;color:var(--soon);font-weight:700;min-height:1.4em}
+.tsel.done .thint{color:var(--ok);font-weight:500}
+@media (prefers-reduced-motion: no-preference){
+  .hm .slot.next::before{animation:caret 1.05s steps(1) infinite}
+  .ampm.next{animation:ring 1.6s ease-in-out infinite}
+}
+@keyframes caret{50%{opacity:0}}
+@keyframes ring{50%{box-shadow:0 0 0 6px var(--bus)}}
+/* 운행일지 표: PC 화면 폭 안에 들어오게 긴 칸은 줄바꿈 */
+.logt th,.logt td{padding:10px 8px}
+.logt td{white-space:normal} .logt td.r{white-space:nowrap}
+.logt td.chk{min-width:150px;font-size:.92rem} .logt .linkbtn{white-space:nowrap}
+.logt th{white-space:normal}
+/* 표 아래 노란 칸 (표에 바로 적기) */
+.entry{background:var(--soon-bg);border-color:var(--bus);display:flex;flex-direction:column;gap:12px}
+.ehead{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
+.egrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 12px;align-items:start}
+.ef{display:flex;flex-direction:column;gap:6px;min-width:0}
+.ef.wide{grid-column:span 2} @media (max-width:480px){.ef.wide{grid-column:auto}}
+.eflab{font-weight:700;font-size:.92rem}
+.ef .in{min-height:46px;padding:6px 10px}
+.ef .num{text-align:right;font-variant-numeric:tabular-nums}
+.ef .ck{display:flex;gap:6px;align-items:center;font-size:.92rem;font-weight:500}
+.ef .ck input{width:22px;height:22px;accent-color:var(--navy)}
+.ef .tsel{padding:6px;gap:6px}
+.ef .ampm button{min-height:42px}
+.ef .hm select{min-height:44px}
+.ef .thint{font-size:.85rem}
+/* 꼭 적을 칸 표시, 아직 비어 있는 도착 km */
+.need{display:inline-block;background:var(--bus);color:var(--bus-ink);border-radius:6px;font-size:.75rem;font-weight:700;padding:0 6px;margin-left:6px;vertical-align:2px}
+#tEnd:placeholder-shown{border-color:var(--bus);box-shadow:0 0 0 3px rgba(255,196,0,.35)}
+/* 인쇄·파일 메뉴 */
+.menu{position:relative}
+.menu>summary{list-style:none}
+.menu>summary::-webkit-details-marker{display:none}
+.menu-list{position:absolute;right:0;top:calc(100% + 6px);z-index:30;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.menu-list .btn{justify-content:flex-start}
 /* 암호 칸 + 눈 단추 */
 .pinbox{position:relative}
 .pinbox .in{padding-right:64px}
@@ -245,7 +286,7 @@ tr.entry .tsel{flex-direction:column;gap:6px;width:116px} tr.entry .tsel select{
   </div>
   <div class="tabs" role="tablist" id="tabs"></div>
   <div id="view" role="tabpanel"></div>
-  <footer class="credit">만든 사람: jeong hwan · 무단 배포 금지</footer>
+  <footer class="credit">만든 사람: jeong hwan · 무단 배포 금지 · <span id="appVer">/*@VER*/</span></footer>
 </div>
 <dialog id="dlg"></dialog>
 <input type="file" id="restoreFile" accept=".json,application/json" hidden>

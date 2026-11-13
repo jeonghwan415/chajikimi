@@ -2,6 +2,8 @@
 const {chromium}=require('playwright');const assert=require('assert');
 const FILE='file://'+__dirname+'/build/index.html';
 require('fs').mkdirSync(__dirname+'/shots',{recursive:true});
+// 시간 고르기: [오전][오후] → 시 → 분
+async function setT(pg,id,v){const H=+v.slice(0,2);await pg.click(`[data-act=ampm][data-tm=${id}][data-v=${H<12?'AM':'PM'}]`);await pg.selectOption('#'+id+'_h',String(H%12||12));await pg.selectOption('#'+id+'_m',v.slice(3));}
 (async()=>{
   const b=await chromium.launch();const errs=[];let n=0;const ok=(name)=>{n++;console.log('  통과: '+name)};
   const watch=p=>p.on('pageerror',e=>errs.push(e.message));
@@ -22,7 +24,7 @@ require('fs').mkdirSync(__dirname+'/shots',{recursive:true});
   await p.click('[data-act=bulk]');const today=await p.evaluate(()=>today());await p.fill('#bd_tire','2025-05-01');await p.fill('#bk_tire','40000');await p.click('[data-act=bulk-save]');await p.waitForTimeout(200);
   assert.equal(await p.locator('.tile.unk').count(),2);ok('한 번에 적기');
   await p.click('[data-act=trip-new]');await p.fill('#tEnd','61446');await p.click('[data-act=trip-save]');assert.match(await p.locator('#tErr').innerText(),/출발 시간/);
-  await p.selectOption('#tST_h','13');await p.selectOption('#tST_m','30');await p.selectOption('#tET_h','13');await p.selectOption('#tET_m','00');await p.click('[data-act=trip-save]');assert.match(await p.locator('#tErr').innerText(),/도착 시간이 출발 시간보다/);await p.selectOption('#tET_h','14');await p.selectOption('#tET_m','05');
+  await setT(p,'tST','13:30');await setT(p,'tET','13:00');await p.click('[data-act=trip-save]');assert.match(await p.locator('#tErr').innerText(),/도착 시간이 출발 시간보다/);await setT(p,'tET','14:05');
   await p.fill('#tEnd','61400');await p.click('[data-act=trip-save]');assert.match(await p.locator('#tErr').innerText(),/작아요/);await p.fill('#tEnd','61446');assert.match(await p.locator('#tDist').innerText(),/= 15km/);
   // 저장하지 않고 닫으면 보관하고 알려 준다
   await p.click('#dlg header [data-act=trip-close]');await p.waitForTimeout(200);assert.match(await p.locator('#view').innerText(),/저장하지 않은 운행 기록이 있어요/);
@@ -31,14 +33,14 @@ require('fs').mkdirSync(__dirname+'/shots',{recursive:true});
   assert.equal(await p.locator('[data-act=draft-drop]').count(),0);assert.match(await p.locator('.toast').last().innerText(),/동승자 확인/);
   assert.equal(await p.evaluate(()=>CJ.odoOf(CJ.state(),'ex-v1')),61446);assert.equal(await p.evaluate(()=>CJ.state().vehicles['ex-v1'].odo),61446);ok('운행 기록과 주행거리');
   // km가 안 이어지는 기록
-  await p.click('[data-act=trip-new]');await p.selectOption('#tST_h','15');await p.selectOption('#tST_m','00');await p.selectOption('#tET_h','15');await p.selectOption('#tET_m','20');await p.fill('#tStart','61500');await p.fill('#tEnd','61510');await p.click('[data-act=trip-save]');await p.waitForTimeout(200);
+  await p.click('[data-act=trip-new]');await setT(p,'tST','15:00');await setT(p,'tET','15:20');await p.fill('#tStart','61500');await p.fill('#tEnd','61510');await p.click('[data-act=trip-save]');await p.waitForTimeout(200);
   await p.click('#tab-log');assert.match(await p.locator('.warn').innerText(),/54km 비어요/);ok('km가 안 이어지면 표시');
   assert.match(await p.locator('thead').innerText(),/일자\s+출발 시간\s+도착 시간\s+운행 목적\s+운행 거리\s+운전자 확인\s+동승자 확인\s+차량 점검 내용/);assert.match(await p.locator('tbody').innerText(),/이상 없음 \(6항목 점검\)/);ok('운행일지 칸: 일자·출발·도착·목적·거리·운전자 확인·동승자 확인·점검 내용');
   assert.match(await p.locator('tfoot').innerText(),/16회 운행/);
   // 마감
   await p.click('[data-act=lock]');await p.click('[data-act=lock2]');await p.waitForTimeout(200);
   assert.equal(await p.locator('[data-act=trip-edit]').count(),0);assert.equal(await p.locator('[data-act=trip-new]').count(),0);
-  await p.click('#tab-home');await p.click('[data-act=trip-new]');await p.selectOption('#tST_h','16');await p.selectOption('#tST_m','00');await p.selectOption('#tET_h','16');await p.selectOption('#tET_m','10');await p.fill('#tEnd','61520');await p.click('[data-act=trip-save]');assert.match(await p.locator('#tErr').innerText(),/마감한 달/);await p.click('#dlg footer [data-act=trip-close]');await p.click('[data-act=draft-drop]');ok('마감한 달은 고칠 수 없음');
+  await p.click('#tab-home');await p.click('[data-act=trip-new]');await setT(p,'tST','16:00');await setT(p,'tET','16:10');await p.fill('#tEnd','61520');await p.click('[data-act=trip-save]');assert.match(await p.locator('#tErr').innerText(),/마감한 달/);await p.click('#dlg footer [data-act=trip-close]');await p.click('[data-act=draft-drop]');ok('마감한 달은 고칠 수 없음');
   await p.click('#tab-log');await p.click('[data-act=unlock]');await p.click('[data-act=unlock2]');await p.waitForTimeout(200);assert.ok(await p.locator('[data-act=trip-edit]').count()>0);
   // 교환 기록 → 다시 계산
   await p.click('#tab-care');await p.click('[data-act=svc-new][data-v=oil]');await p.click('[data-act=svc-save]');await p.waitForTimeout(200);
@@ -66,12 +68,26 @@ require('fs').mkdirSync(__dirname+'/shots',{recursive:true});
   assert.equal(await q.locator('#careFold').getAttribute('open'),null);
   assert.ok(await q.locator('[data-act=trip-like]').count()>=2);await q.click('[data-act=trip-like] >> nth=0');
   assert.match(await q.locator('#dlg').innerText(),/채워 두었어요/);assert.ok(['등원','하원'].includes(await q.inputValue('#tPurpose')));assert.notEqual(await q.inputValue('#tST'),'');assert.equal(await q.inputValue('#tEnd'),'');
+  // 오전/오후 → 시 → 분 차례로 안내하고, 다 고르면 확인 글자
+  await q.click('#dlg header [data-act=trip-close]');await q.click('[data-act=trip-new]');
+  assert.match(await q.getAttribute('#tST_box .ampm','class'),/next/);assert.match(await q.locator('#tST_hint').innerText(),/오전·오후를 먼저/);
+  await q.selectOption('#tST_h','1');await q.click('[data-act=trip-save]');assert.match(await q.locator('#tErr').innerText(),/출발 시간의 오전·오후를/);
+  await q.click('[data-act=ampm][data-tm=tST][data-v=PM]');assert.equal(await q.inputValue('#tST'),'13:00');assert.match(await q.locator('#tST_hint').innerText(),/오후 1:00/);
+  await q.selectOption('#tST_m','30');assert.equal(await q.inputValue('#tST'),'13:30');assert.match(await q.getAttribute('#tST_box','class'),/done/);
+  await q.click('[data-act=ampm][data-tm=tST][data-v=AM]');assert.equal(await q.inputValue('#tST'),'01:30');
+  assert.equal(await q.locator('#tST_h option').count(),13);ok('시간: 오전·오후 단추 → 시 → 분, 다음 칸 안내와 확인 글자');
+  await q.click('#dlg header [data-act=trip-close]');if(await q.locator('[data-act=draft-drop]').count())await q.click('[data-act=draft-drop]');await q.click('[data-act=trip-like] >> nth=0');
   const mins=await q.locator('#tST_m option').evaluateAll(o=>o.map(x=>x.value).filter(Boolean));assert.deepEqual(mins,['00','05','10','15','20','25','30','35','40','45','50','55']);
   assert.equal(+(await q.inputValue('#tET')).slice(3)%5,0);ok('시간은 5분 단위로 고름');
   const st=+(await q.inputValue('#tStart'));await q.fill('#tEnd',String(st+14));await q.click('[data-act=chk-all]');await q.check('#tDrvOk');await q.check('#tGuardOk');await q.click('[data-act=trip-save]');await q.waitForTimeout(200);
   assert.equal(await q.evaluate(()=>Object.keys(CJ.state().trips).length),15);ok('자주 하는 운행 바로 적기: 도착 km만 적고 저장');
+  // 같은 날 시간이 겹치면 알려 준다 (방금 적은 운행과 같은 시간으로 하나 더 적었다가 지운다)
+  await q.click('[data-act=trip-like] >> nth=0');const s3=+(await q.inputValue('#tStart'));await q.fill('#tEnd',String(s3+5));await q.click('[data-act=trip-save]');await q.waitForTimeout(150);
+  assert.match(await q.locator('.toast').last().innerText(),/시간이 겹쳐요/);
+  await q.evaluate(()=>{const S=CJ.state();const id=Object.keys(S.trips).filter(k=>!S.trips[k].ex).sort((a,b)=>S.trips[b].ts-S.trips[a].ts)[0];delete S.trips[id];localStorage.setItem('cj.data',JSON.stringify(Object.assign({schema:2},S)));});await q.reload();await q.waitForTimeout(300);ok('같은 날 시간이 겹치면 알림');
+  assert.match(await q.locator('#appVer').innerText(),/^v\d/);ok('화면 아래에 판 번호');
   await q.click('#tab-log');assert.equal(await q.locator('#entryRow').count(),1);
-  await q.selectOption('#rST_h','15');await q.selectOption('#rST_m','00');await q.selectOption('#rET_h','15');await q.selectOption('#rET_m','30');await q.fill('#rEnd','10');await q.press('#rEnd','Enter');assert.match(await q.locator('#rowErr').innerText(),/작아요/);
+  await setT(q,'rST','15:00');await setT(q,'rET','15:30');await q.fill('#rEnd','10');await q.press('#rEnd','Enter');assert.match(await q.locator('#rowErr').innerText(),/작아요/);
   const s2=+(await q.inputValue('#rStart'));await q.fill('#rEnd',String(s2+12));await q.fill('#rGuard','이선생');await q.check('#rChk');await q.check('#rDrvOk');await q.press('#rEnd','Enter');await q.waitForTimeout(200);
   assert.equal(await q.evaluate(()=>Object.keys(CJ.state().trips).length),16);assert.equal(await q.inputValue('#rGuard'),'이선생');assert.equal(await q.inputValue('#rStart'),String(s2+12));assert.equal(await q.inputValue('#rEnd'),'');
   assert.match(await q.locator('tbody').innerText(),/이상 없음 \(6항목 점검\)/);ok('표에 바로 적기: Enter로 저장, 다음 줄은 출발 km·동승자가 이어짐');
@@ -88,7 +104,7 @@ require('fs').mkdirSync(__dirname+'/shots',{recursive:true});
   assert.equal(await q.evaluate(()=>CJ.itemStatus(CJ.state(),'ex-v1',CJ.ITEMS[0],today()).st),'ok');ok('엔진오일 교환 저장하고 영수증 양식 인쇄');
   await q.click('[data-act=rc-blank]');pr=await q.evaluate(()=>window.__printed);assert.match(pr,/지출 증빙서/);assert.doesNotMatch(pr,/52,000/);ok('빈 영수증 양식');
   // 유류수불대장: 지침 칸(연번·일자·주유량·금액·주행거리·비고·결재 담당/시설장)
-  await q.click('#tab-log');await q.click('[data-act=fuel]');pr=await q.evaluate(()=>window.__printed);
+  await q.click('#tab-log');await q.click('#fileMenu summary');await q.click('[data-act=fuel]');pr=await q.evaluate(()=>window.__printed);
   assert.match(pr,/유류수불대장/);for(const k of ['연번','일자','주유량','금액','주행거리','비고','결재','담당','시설장'])assert.ok(pr.includes('>'+k),k);
   assert.match(pr,/35.2 L/);assert.match(pr,/52,000원/);assert.match(pr,/합계 \(1회\)/);assert.equal((pr.match(/<tr>/g)||[]).length>=17,true);ok('유류수불대장: 지침 칸 그대로, 주유량·금액 합계');
   await q.click('[data-act=claim]');pr=await q.evaluate(()=>window.__printed);assert.match(pr,/유류수불대장/);
@@ -111,12 +127,12 @@ require('fs').mkdirSync(__dirname+'/shots',{recursive:true});
   assert.match(await ph.locator('#dlg h2').innerText(),/^센터 암호$/);await ph.fill('#pinIn','9999');await ph.click('[data-act=pin-ok]');await ph.waitForTimeout(300);assert.match(await ph.locator('#pinErr').innerText(),/맞지 않아요/);
   await ph.fill('#pinIn','2468');await ph.fill('#meIn','김선생');await ph.click('[data-act=pin-ok]');await ph.waitForTimeout(400);
   assert.match(await ph.locator('#view').innerText(),/스타렉스/);ok('휴대폰: 틀린 암호 거절, 맞는 암호로 같은 차량이 보임');
-  await ph.click('[data-act=trip-new]');await ph.fill('#tDriver','김선생');await ph.selectOption('#tST_h','13');await ph.selectOption('#tST_m','30');await ph.selectOption('#tET_h','14');await ph.selectOption('#tET_m','00');await ph.fill('#tEnd','15500');await ph.click('[data-act=trip-save]');await ph.waitForTimeout(300);
+  await ph.click('[data-act=trip-new]');await ph.fill('#tDriver','김선생');await setT(ph,'tST','13:30');await setT(ph,'tET','14:00');await ph.fill('#tEnd','15500');await ph.click('[data-act=trip-save]');await ph.waitForTimeout(300);
   await pc.waitForTimeout(21000);
   assert.match(await pc.locator('.odo').getAttribute('aria-label'),/15,500/);await pc.click('#tab-log');assert.match(await pc.locator('tbody').innerText(),/김선생/);ok('휴대폰에서 적은 운행이 PC에 나타남 (20초 안)');
   assert.equal(M.sheets['운행일지'].rows[1][16],'김선생');ok('누가 적었는지 시트에 남음');
   // 인터넷이 끊겼다가 돌아옴
-  down=true;await ph.click('[data-act=trip-new]');await ph.selectOption('#tST_h','18');await ph.selectOption('#tST_m','00');await ph.selectOption('#tET_h','18');await ph.selectOption('#tET_m','30');await ph.fill('#tEnd','15520');await ph.click('[data-act=trip-save]');await ph.waitForTimeout(400);
+  down=true;await ph.click('[data-act=trip-new]');await setT(ph,'tST','18:00');await setT(ph,'tET','18:30');await ph.fill('#tEnd','15520');await ph.click('[data-act=trip-save]');await ph.waitForTimeout(400);
   assert.match(await ph.locator('#sync').innerText(),/보내지 못한 기록 2건/);assert.equal(M.sheets['운행일지'].rows.length,2);
   await ph.reload();await ph.waitForTimeout(300);assert.equal(await ph.evaluate(()=>CJ.outbox().length),2);
   down=false;await ph.reload();await ph.waitForTimeout(1500);

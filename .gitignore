@@ -9,3 +9,4 @@ node_modules/
 *.tmp
 desktop.ini
 .DS_Store
+.court/

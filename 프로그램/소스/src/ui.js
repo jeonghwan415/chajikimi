@@ -144,7 +144,7 @@ function boot(){
 var ui={tab:'home',vid:LS.get('cj.ui',{}).vid||null,month:today().slice(0,7)};
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function $(id){return document.getElementById(id);}
-function toast(msg){var t=document.createElement('div');t.className='toast';t.setAttribute('role','status');t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},3200);}
+function toast(msg){var t=document.createElement('div');t.className='toast';t.setAttribute('role','status');t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},Math.min(9000,Math.max(3200,msg.length*110)));}
 function vids(){return Object.keys(S.vehicles).sort(function(a,b){return (S.vehicles[a].ts||0)-(S.vehicles[b].ts||0);});}
 function curVid(){var ids=vids(); if(!ids.length)return null; if(!S.vehicles[ui.vid])ui.vid=ids[0]; return ui.vid;}
 function hasExamples(){return COLLS.some(function(c){return vals(S[c]).some(function(x){return x.ex;});});}
@@ -163,7 +163,7 @@ function render(){
   if(store.mode==='loading'){ h='<div class="card empty"><p>기록을 불러오고 있어요…</p></div>'; }
   else if(!vid && ui.tab!=='set'){ h=viewWelcome(); }
   else h={home:viewHome,log:viewLog,care:viewCare,set:viewSet}[ui.tab](vid,now,alertsNow);
-  $('view').innerHTML='<div class="wrap" style="gap:18px">'+h+'</div>';
+  $('view').innerHTML='<div class="wrap" style="gap:18px">'+h+'</div>'; syncTimes();
   setSync();
 }
 function viewWelcome(){
@@ -249,17 +249,17 @@ function tripsOf(vid,month){
 }
 function viewLog(vid){
   var list=tripsOf(vid,ui.month), total=0, kids=0, g=gaps(S,vid), locked=isLocked(S,ui.month); list.forEach(function(e){total+=e[1].endKm-e[1].startKm; kids+=(+e[1].riders||0);});
-  var rows=list.map(function(e){var t=e[1], gap=g[e[0]];return '<tr><td>'+fmtD(t.date)+exTag(t)+'</td><td>'+esc(t.startTime||'-')+'</td><td>'+esc(t.endTime||'-')+'</td><td>'+esc(t.purpose)+(t.dest?' ('+esc(t.dest)+')':'')+'</td><td class="r"><b>'+fmtKm(t.endKm-t.startKm)+'km</b><br><span class="muted small">'+fmtKm(t.startKm)+' → '+fmtKm(t.endKm)+'</span>'+(gap?'<br><span class="warn">앞 기록과 '+fmtKm(Math.abs(gap))+'km '+(gap>0?'비어요':'겹쳐요')+'</span>':'')+'</td><td>'+esc(t.driver)+(t.drvOk?' <span class="pill ok">확인</span>':' <span class="pill unk">확인 전</span>')+'</td><td>'+(t.guardian?esc(t.guardian)+(t.guardOk?' <span class="pill ok">확인</span>':' <span class="pill unk">확인 전</span>'):'-')+'</td><td style="white-space:normal;min-width:180px">'+esc(checkText(t))+'</td><td class="r">'+(t.riders||0)+'</td><td>'+(locked?'':'<button class="linkbtn" data-act="trip-edit" data-v="'+e[0]+'">고치기</button>')+'</td></tr>';}).join('');
+  var rows=list.map(function(e){var t=e[1], gap=g[e[0]];return '<tr><td>'+fmtD(t.date)+exTag(t)+'</td><td>'+esc(t.startTime||'-')+'</td><td>'+esc(t.endTime||'-')+'</td><td>'+esc(t.purpose)+(t.dest?' ('+esc(t.dest)+')':'')+'</td><td class="r"><b>'+fmtKm(t.endKm-t.startKm)+'km</b><br><span class="muted small">'+fmtKm(t.startKm)+' → '+fmtKm(t.endKm)+'</span>'+(gap?'<br><span class="warn">앞 기록과 '+fmtKm(Math.abs(gap))+'km '+(gap>0?'비어요':'겹쳐요')+'</span>':'')+'</td><td>'+esc(t.driver)+(t.drvOk?' <span class="pill ok">확인</span>':' <span class="pill unk">확인 전</span>')+'</td><td>'+(t.guardian?esc(t.guardian)+(t.guardOk?' <span class="pill ok">확인</span>':' <span class="pill unk">확인 전</span>'):'-')+'</td><td class="chk">'+esc(checkText(t))+'</td><td class="r">'+(t.riders||0)+'</td><td>'+(locked?'':'<button class="linkbtn" data-act="trip-edit" data-v="'+e[0]+'">고치기</button>')+'</td></tr>';}).join('');
   var saveLabel=inClaude?'인쇄용 파일 저장':'인쇄하기', rowOn=!locked&&rowMode();
   return vehPicker(vid)+
   '<div class="row"><h2 class="grow">운행일지</h2>'+(locked?'':'<button class="btn" data-act="row-mode" aria-pressed="'+rowOn+'">'+(rowOn?'표에 바로 적기 끄기':'표에 바로 적기')+'</button><button class="btn main" data-act="trip-new">+ 운행 기록하기</button>')+'</div>'+
-  (rowOn?'<div class="banner entryhelp" style="background:var(--surface2)"><span class="grow"><b>종이 일지처럼 표 맨 아래 노란 줄에 바로 적으세요.</b> 칸 사이는 <span class="key">Tab</span>, 저장은 <span class="key">Enter</span>. 종이에 먼저 적어 두었다가 한꺼번에 옮겨 적어도 돼요.</span></div><div id="rowErr" role="alert"></div>':'')+
-  '<div class="row"><button class="btn sm" data-act="month" data-v="-1" aria-label="이전 달">◀ 이전 달</button><b class="num" style="font-size:1.2rem">'+ui.month.replace('-','년 ')+'월</b><button class="btn sm" data-act="month" data-v="1" aria-label="다음 달">다음 달 ▶</button><span class="grow"></span><button class="btn sm" data-act="print">'+saveLabel+'</button><button class="btn sm" data-act="fuel">유류수불대장 인쇄</button><button class="btn sm" data-act="claim" title="이 달 운행일지 + 유류수불대장 + 지출 내역 + 영수증 양식">청구용 인쇄 (일지+영수증)</button><button class="btn sm" data-act="csv">엑셀 파일 저장</button>'+(inClaude?'':'<button class="btn sm" data-act="hwpx">한글 파일 저장</button>')+
+  (rowOn?'<div class="banner entryhelp" style="background:var(--surface2)"><span class="grow"><b>종이 일지처럼 표 바로 아래 노란 칸에 한 줄씩 적으세요.</b> 칸 사이는 <span class="key">Tab</span>, 저장은 <span class="key">Enter</span>. 종이에 먼저 적어 두었다가 한꺼번에 옮겨 적어도 돼요.</span></div>':'')+
+  '<div class="row"><button class="btn sm" data-act="month" data-v="-1" aria-label="이전 달">◀ 이전 달</button><b class="num" style="font-size:1.2rem">'+ui.month.replace('-','년 ')+'월</b><button class="btn sm" data-act="month" data-v="1" aria-label="다음 달">다음 달 ▶</button><span class="grow"></span><button class="btn sm" data-act="print">'+saveLabel+'</button><button class="btn sm" data-act="claim" title="이 달 운행일지 + 유류수불대장 + 지출 내역 + 영수증 양식">청구용 인쇄 (일지+영수증)</button><details class="menu" id="fileMenu"><summary class="btn sm">다른 인쇄·파일 ▾</summary><div class="menu-list"><button class="btn sm" data-act="fuel">유류수불대장 인쇄</button><button class="btn sm" data-act="csv">엑셀 파일 저장</button>'+(inClaude?'':'<button class="btn sm" data-act="hwpx">한글 파일 저장</button>')+'</div></details>'+
     (locked?'<button class="btn sm" data-act="unlock">마감 풀기</button>':(list.length?'<button class="btn sm" data-act="lock">이 달 마감하기</button>':''))+'</div>'+
   (locked?'<div class="banner" style="background:var(--ok-bg)"><b>마감한 달이에요.</b><span class="grow">결재가 끝난 기록이라 고치거나 지울 수 없어요. 고쳐야 하면 [마감 풀기]를 눌러 주세요.</span></div>':'')+
-  (list.length||rowOn?'<div class="tablebox"><table><thead><tr><th>일자</th><th>출발 시간</th><th>도착 시간</th><th>운행 목적</th><th class="r">운행 거리</th><th>운전자 확인</th><th>동승자 확인</th><th>차량 점검 내용</th><th class="r">탑승 아동</th><th></th></tr></thead><tbody>'+rows+(rowOn?entryRow(vid):'')+'</tbody><tfoot><tr><td colspan="4">'+list.length+'회 운행</td><td class="r">'+fmtKm(total)+'km</td><td colspan="3"></td><td class="r">'+kids+'</td><td></td></tr></tfoot></table></div>'
+  (list.length?'<div class="tablebox"><table class="logt"><thead><tr><th>일자</th><th>출발 시간</th><th>도착 시간</th><th>운행 목적</th><th class="r">운행 거리</th><th>운전자 확인</th><th>동승자 확인</th><th>차량 점검 내용</th><th class="r">탑승 아동</th><th></th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr><td colspan="4">'+list.length+'회 운행</td><td class="r">'+fmtKm(total)+'km</td><td colspan="3"></td><td class="r">'+kids+'</td><td></td></tr></tfoot></table></div>'
    :'<div class="card empty"><p>이 달에는 운행 기록이 없어요.</p></div>')+
-  (rowOn?'<div class="row"><span class="grow muted small">노란 줄을 다 적었으면 Enter를 누르거나 오른쪽 단추를 눌러 주세요.</span><button class="btn main" data-act="row-save">노란 줄 저장하기</button></div>':'');
+  (rowOn?entryRow(vid):'');
 }
 // '표에 바로 적기'는 PC(넓은 화면)에서 처음부터 켜 둔다. 끄고 켠 것은 기기가 기억한다.
 function rowMode(){ var m=LS.get('cj.rowmode',null); return m==null?innerWidth>700:!!m; }
@@ -347,22 +347,36 @@ function saveBulk(){
   closeDlg(); toast(n?n+'개 항목을 저장했어요. 다음 시기를 계산했습니다.':'적은 항목이 없어요.');
 }
 function nowHM(){var d=new Date(); d.setMinutes(Math.round(d.getMinutes()/5)*5,0,0); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
-// 시간 고르기: '시'와 '분'(5분 단위) 두 칸. 실제 값(13:30)은 숨은 칸에 들어간다.
+// 시간 고르기: [오전][오후] 단추 → 시(1~12) → 분(5분 단위). 실제 값(13:30)은 숨은 칸에 들어간다.
+// 다음에 골라야 할 칸에는 깜박이는 커서와 노란 테두리를 보여 주고, 아래에 무엇을 고를지 한 줄로 알려 준다.
 function hourName(h){ return h===0?'오전 0시':h<12?'오전 '+h+'시':h===12?'낮 12시':'오후 '+(h-12)+'시'; }
+function to12(v){ if(!v) return {ap:'',h:'',m:''}; var p=v.split(':'), H=+p[0]; return {ap:H<12?'AM':'PM',h:String(H%12||12),m:p[1]}; }
+function to24(ap,h,m){ var H=+h%12+(ap==='PM'?12:0); return String(H).padStart(2,'0')+':'+m; }
 function timeSel(id,val,label){
-  var p=String(val||'').split(':'), hv=val?p[0]:'', mv=val?p[1]:'', ms=[];
+  var t=to12(val), ms=[], hs='';
   for(var m=0;m<60;m+=5) ms.push(String(m).padStart(2,'0'));
-  if(mv&&ms.indexOf(mv)<0){ ms.push(mv); ms.sort(); }   // 예전에 1분 단위로 적은 기록도 그대로 보인다
-  var hs=''; for(var h=0;h<24;h++){ var v=String(h).padStart(2,'0'); hs+='<option value="'+v+'"'+(v===hv?' selected':'')+'>'+hourName(h)+'</option>'; }
-  return '<div class="tsel"><input type="hidden" id="'+id+'" value="'+esc(val||'')+'">'+
-    '<select class="in" id="'+id+'_h" data-tm="'+id+'" aria-label="'+label+' 시"><option value="">시</option>'+hs+'</select>'+
-    '<select class="in" id="'+id+'_m" data-tm="'+id+'" aria-label="'+label+' 분"><option value="">분</option>'+ms.map(function(v){return '<option value="'+v+'"'+(v===mv?' selected':'')+'>'+v+'분</option>';}).join('')+'</select></div>';
+  if(t.m&&ms.indexOf(t.m)<0){ ms.push(t.m); ms.sort(); }   // 예전에 1분 단위로 적은 기록도 그대로 보인다
+  for(var h=1;h<=12;h++) hs+='<option value="'+h+'"'+(String(h)===t.h?' selected':'')+'>'+h+'시</option>';
+  return '<div class="tsel" id="'+id+'_box"><input type="hidden" id="'+id+'" value="'+esc(val||'')+'"><input type="hidden" id="'+id+'_ap" value="'+t.ap+'">'+
+    '<div class="ampm" role="group" aria-label="'+label+' 오전·오후">'+['AM','PM'].map(function(a){return '<button type="button" data-act="ampm" data-tm="'+id+'" data-v="'+a+'" aria-pressed="'+(t.ap===a)+'">'+(a==='AM'?'오전':'오후')+'</button>';}).join('')+'</div>'+
+    '<div class="hm"><span class="slot"><select class="in" id="'+id+'_h" data-tm="'+id+'" aria-label="'+label+' 시"><option value="">시</option>'+hs+'</select></span><b class="colon" aria-hidden="true">:</b>'+
+    '<span class="slot"><select class="in" id="'+id+'_m" data-tm="'+id+'" aria-label="'+label+' 분"><option value="">분</option>'+ms.map(function(v){return '<option value="'+v+'"'+(v===t.m?' selected':'')+'>'+v+'분</option>';}).join('')+'</select></span></div>'+
+    '<div class="thint" id="'+id+'_hint" aria-live="polite"></div></div>';
 }
+// 고른 것을 숨은 칸에 넣고, 다음에 고를 칸을 표시한다
 function syncTime(id){
-  var h=$(id+'_h'), m=$(id+'_m'); if(!h||!m) return;
-  if(h.value&&!m.value) m.value='00';
-  $(id).value=h.value&&m.value?h.value+':'+m.value:'';
+  var box=$(id+'_box'); if(!box) return;
+  var ap=$(id+'_ap').value, h=$(id+'_h'), m=$(id+'_m');
+  if(ap&&h.value&&!m.value) m.value='00';
+  $(id).value=ap&&h.value&&m.value?to24(ap,h.value,m.value):'';
+  box.querySelectorAll('[data-act=ampm]').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.v===ap);});
+  var next=!ap?box.querySelector('.ampm'):!h.value?h.parentNode:!m.value?m.parentNode:null;
+  box.querySelectorAll('.next').forEach(function(x){x.classList.remove('next');}); if(next) next.classList.add('next');
+  box.classList.toggle('done',!next);
+  $(id+'_hint').innerHTML=!ap?'▶ 오전·오후를 먼저 골라 주세요':!h.value?'▶ 몇 시인지 골라 주세요':!m.value?'▶ 몇 분인지 골라 주세요':'<b>'+(ap==='AM'?'오전':'오후')+' '+h.value+':'+m.value+'</b> 으로 적어요';
 }
+function syncTimes(){ ['tST','tET','rST','rET'].forEach(syncTime); }
+function timeNeed(id){ var ap=$(id+'_ap'); if(!ap) return ''; return !ap.value?'오전·오후를':!$(id+'_h').value?'시를':'분을'; }
 var tripDirty=false, tripOpenedAt=0;
 function tripForm(id,like){
   var vid=curVid(), t=id?S.trips[id]:null, odo=odoOf(S,vid), names=driversOf(S).map(function(d){return d.name;});
@@ -373,16 +387,16 @@ function tripForm(id,like){
   openDlg('<header><h2>'+(t?'운행 기록 고치기':'운행 기록하기')+'</h2><button type="button" class="btn sm" data-act="trip-close">닫기</button></header><div class="body" id="tripBody">'+
    (draft?'<div class="banner"><span class="grow">쓰다 만 내용을 불러왔어요. 확인하고 <b>저장하기</b>를 눌러 주세요.</span><button type="button" class="btn sm" data-act="draft-reset">지우고 새로 쓰기</button></div>':'')+
    (like?'<div class="banner"><span class="grow">지난번 <b>'+esc(like.purpose)+'</b> 운행 내용을 채워 두었어요. <b>도착 km</b>와 확인 칸만 보고 저장해 주세요.</span></div>':'')+
-   '<div class="two"><div class="field"><label for="tDate">일자</label><input class="in" type="date" id="tDate" value="'+d.date+'" max="'+today()+'"></div>'+
+   '<div class="two"><div class="field"><label for="tDate">일자<span class="need">꼭</span></label><input class="in" type="date" id="tDate" value="'+d.date+'" max="'+today()+'"></div>'+
    '<div class="field"><span class="lab">차량</span><div class="in" style="display:flex;align-items:center;background:var(--surface2)">'+esc(S.vehicles[vid].name)+'</div></div></div>'+
-   '<div class="two"><div class="field"><label for="tST_h">출발 시간 <span class="muted small">(5분 단위)</span></label>'+timeSel('tST',d.startTime,'출발 시간')+'</div>'+
-   '<div class="field"><label for="tET_h">도착 시간 <span class="muted small">(5분 단위)</span></label>'+timeSel('tET',d.endTime,'도착 시간')+'</div></div>'+
+   '<div class="two"><div class="field"><span class="lab">출발 시간<span class="need">꼭</span> <span class="muted small">(5분 단위)</span></span>'+timeSel('tST',d.startTime,'출발 시간')+'</div>'+
+   '<div class="field"><span class="lab">도착 시간<span class="need">꼭</span> <span class="muted small">(5분 단위)</span></span>'+timeSel('tET',d.endTime,'도착 시간')+'</div></div>'+
    chipsField('tPurpose','운행 목적',PURPOSES,d.purpose,false)+
    '<div class="field"><label for="tDest">목적지 <span class="muted small">(적지 않아도 돼요)</span></label><input class="in" id="tDest" value="'+esc(d.dest||'')+'" placeholder="예: ○○초등학교, 과학관"></div>'+
    '<div class="two"><div class="field"><label for="tStart">출발할 때 계기판 km</label><input class="in km" id="tStart" inputmode="numeric" value="'+d.startKm+'"><span class="hint">지난 운행의 도착 km를 넣어 두었어요.</span></div>'+
-   '<div class="field"><label for="tEnd">도착했을 때 계기판 km</label><input class="in km" id="tEnd" inputmode="numeric" value="'+d.endKm+'" placeholder="숫자만"></div></div>'+
+   '<div class="field"><label for="tEnd">도착했을 때 계기판 km<span class="need">꼭</span></label><input class="in km" id="tEnd" inputmode="numeric" value="'+d.endKm+'" placeholder="숫자만"></div></div>'+
    '<div class="dist" id="tDist" role="status">도착 km를 적으면 운행 거리를 계산해 드려요.</div>'+
-   chipsField('tDriver','운전자',names,d.driver,true)+
+   chipsField('tDriver','운전자<span class="need">꼭</span>',names,d.driver,true)+
    '<label class="check"><input type="checkbox" id="tDrvOk" '+(d.drvOk?'checked':'')+'><span><b>운전자 확인</b><br><span class="muted small">위 운행 내용이 맞는지 운전한 선생님이 확인했어요</span></span></label>'+
    '<div class="two"><div class="field"><label for="tGuard">동승자 (동승보호자)</label><input class="in" id="tGuard" value="'+esc(d.guardian||'')+'" placeholder="함께 탄 선생님 이름" list="tGuardList"><datalist id="tGuardList">'+names.map(function(n){return '<option value="'+esc(n)+'">';}).join('')+'</datalist></div>'+
    '<div class="field"><span class="lab" id="tRidLab">탑승 아동 수</span><div class="stepper"><button type="button" data-act="step" data-v="-1" aria-label="한 명 줄이기">−</button><input class="in num" id="tRiders" inputmode="numeric" value="'+(d.riders||0)+'" aria-labelledby="tRidLab"><button type="button" data-act="step" data-v="1" aria-label="한 명 늘리기">+</button><span>명</span></div></div></div>'+
@@ -393,7 +407,7 @@ function tripForm(id,like){
    '<div id="tErr" role="alert"></div></div>'+
    '<footer>'+(t?'<button type="button" class="btn danger" data-act="trip-del" data-v="'+id+'">이 기록 지우기</button><span class="grow"></span>':'<span class="muted small grow">저장하기를 눌러야 기록이 남아요.</span>')+'<button type="button" class="btn" data-act="trip-close">취소</button><button type="button" class="btn main" data-act="trip-save" data-v="'+(id||'')+'">저장하기</button></footer>');
   $('dlg').dataset.trip=id?'edit':'new'; tripOpenedAt=Date.now();
-  updDist(); if(like){ try{$('tEnd').focus();}catch(e){} }
+  updDist(); syncTimes(); if(like){ try{$('tEnd').focus();}catch(e){} }
 }
 function readTrip(){
   var a=numVal('tStart'), b=numVal('tEnd');
@@ -421,12 +435,13 @@ function syncOdo(vid,hadMax){
   if(next!==(+v.odo||0)) put('vehicles',vid,Object.assign({},v,{odo:next}));
 }
 // 운행 기록이 맞는지 본다. 틀린 곳이 있으면 쉬운 말로 알려 준다. (입력 창과 '표에 바로 적기'가 함께 쓴다)
-function tripError(f,old){
+function tripError(f,old,pre){
   var a=f.startKm, b=f.endKm, err='';
   if(!f.date) err='일자를 골라 주세요.';
   else if(f.date>today()) err='오늘보다 뒤의 날짜예요. 일자를 다시 봐 주세요.';
   else if(isLocked(S,f.date.slice(0,7))||(old&&isLocked(S,old.date.slice(0,7)))) err='마감한 달이에요. 운행일지에서 [마감 풀기]를 한 뒤에 고칠 수 있어요.';
-  else if(!f.startTime||!f.endTime) err='출발 시간과 도착 시간을 적어 주세요.';
+  else if(!f.startTime) err='출발 시간의 '+(timeNeed((pre||'t')+'ST')||'시간을')+' 골라 주세요.';
+  else if(!f.endTime) err='도착 시간의 '+(timeNeed((pre||'t')+'ET')||'시간을')+' 골라 주세요.';
   else if(f.endTime<f.startTime) err='도착 시간이 출발 시간보다 빨라요. 시간을 다시 봐 주세요.';
   else if(a===''||b==='') err='출발 km와 도착 km를 숫자로 적어 주세요.';
   else if(b<a) err='도착 km가 출발 km보다 작아요. 계기판 숫자를 다시 봐 주세요.';
@@ -441,11 +456,15 @@ function commitTrip(id,f,openedAt){
   if(old) t.editedAt=new Date().toISOString(); else t.secs=Math.round((Date.now()-openedAt)/1000);
   applyOp({c:'trips',id:nid,data:t}); send({c:'trips',id:nid,data:t,prev:old});
   LS.set('cj.driver',f.driver); syncOdo(vid,hadMax);
-  var gap=gaps(S,vid)[nid], todo=[]; if(!t.drvOk)todo.push('운전자 확인'); if(t.guardian&&!t.guardOk)todo.push('동승자 확인'); if(t.checks.length<CHECKS.length)todo.push('차량 점검');
-  return '저장했어요. 운행 거리 '+fmtKm(b-a)+'km'+(gap?' · 앞 기록과 km가 '+fmtKm(Math.abs(gap))+'km 안 이어져요':'')+(todo.length?' · 아직 안 한 것: '+todo.join(', '):'');
+  var gap=gaps(S,vid)[nid], todo=[], lap=overlapOf(nid,t); if(!t.drvOk)todo.push('운전자 확인'); if(t.guardian&&!t.guardOk)todo.push('동승자 확인'); if(t.checks.length<CHECKS.length)todo.push('차량 점검');
+  return '저장했어요. 운행 거리 '+fmtKm(b-a)+'km'+(gap?' · 앞 기록과 km가 '+fmtKm(Math.abs(gap))+'km 안 이어져요':'')+(todo.length?' · 아직 안 한 것: '+todo.join(', '):'')+(lap?' · 같은 날 '+lap.startTime+'~'+lap.endTime+' '+lap.purpose+' 운행과 시간이 겹쳐요':'');
+}
+// 같은 차, 같은 날에 시간이 겹치는 다른 운행 (잘못 고른 오전·오후를 찾는 데 도움)
+function overlapOf(id,t){
+  return Object.keys(S.trips).filter(function(k){var o=S.trips[k]; return k!==id&&o.vid===t.vid&&o.date===t.date&&o.startTime&&o.endTime&&o.startTime<t.endTime&&t.startTime<o.endTime;}).map(function(k){return S.trips[k];})[0]||null;
 }
 function saveTrip(id){
-  var f=readTrip(), err=tripError(f,id?S.trips[id]:null);
+  var f=readTrip(), err=tripError(f,id?S.trips[id]:null,'t');
   if(err){$('tErr').innerHTML='<div class="err">'+err+'</div>';$('tErr').scrollIntoView({block:'nearest'});return;}
   var msg=commitTrip(id,f,tripOpenedAt); if(!id) LS.set('cj.draft',null);
   delete $('dlg').dataset.trip; tripDirty=false; closeDlg(); toast(msg);
@@ -456,28 +475,31 @@ function entryRow(vid){
   var names=driversOf(S).map(function(d){return d.name;}), odo=odoOf(S,vid), k=rowKeep||{};
   var cur=today().slice(0,7), date=k.date&&k.date.slice(0,7)===ui.month?k.date:(ui.month===cur?today():ui.month+'-01');
   var opt=function(o,sel){return '<option'+(o===sel?' selected':'')+'>'+esc(o)+'</option>';};
-  return '<tr class="entry" id="entryRow"><td><input class="in d" type="date" id="rDate" value="'+date+'" max="'+today()+'" aria-label="일자"></td>'+
-    '<td>'+timeSel('rST',k.startTime,'출발 시간')+'</td>'+
-    '<td>'+timeSel('rET',k.endTime,'도착 시간')+'</td>'+
-    '<td><select class="in n" id="rPurpose" aria-label="운행 목적">'+PURPOSES.map(function(p){return opt(p,k.purpose||'등원');}).join('')+'</select><input class="in n" id="rDest" value="'+esc(k.dest||'')+'" placeholder="목적지(선택)" aria-label="목적지" style="margin-top:6px"></td>'+
-    '<td class="r"><input class="in k" id="rStart" inputmode="numeric" value="'+odo+'" aria-label="출발 km" title="출발 km"><div class="muted small">↓ 도착 km</div><input class="in k" id="rEnd" inputmode="numeric" placeholder="도착 km" aria-label="도착 km"></td>'+
-    '<td><input class="in n" id="rDriver" value="'+esc(k.driver||LS.get('cj.driver','')||me||names[0]||'')+'" list="rNames" aria-label="운전자"><label><input type="checkbox" id="rDrvOk">확인</label></td>'+
-    '<td><input class="in n" id="rGuard" value="'+esc(k.guardian||'')+'" list="rNames" placeholder="동승자" aria-label="동승자"><label><input type="checkbox" id="rGuardOk">확인</label><datalist id="rNames">'+names.map(function(n){return '<option value="'+esc(n)+'">';}).join('')+'</datalist></td>'+
-    '<td><label style="margin-top:0"><input type="checkbox" id="rChk">이상 없음 ('+CHECKS.length+'항목)</label><input class="in" id="rNote" placeholder="이상 있으면 적기" aria-label="점검에서 이상이 있던 내용" style="margin-top:6px;min-width:150px"></td>'+
-    '<td class="r"><input class="in s" id="rRiders" inputmode="numeric" value="'+(k.riders!=null?k.riders:'')+'" placeholder="0" aria-label="탑승 아동 수"></td>'+
-    '<td><button type="button" class="btn sm main" data-act="row-save">저장</button></td></tr>';
+  // 표 바로 아래 노란 칸. 칸마다 이름을 보이고, 넓은 화면에서는 한 줄, 좁으면 두세 줄로 접힌다(옆으로 밀지 않아도 다 보이게).
+  var F=function(lab,html,cls){return '<div class="ef'+(cls?' '+cls:'')+'"><span class="eflab">'+lab+'</span>'+html+'</div>';};
+  return '<div class="card entry" id="entryRow"><div class="ehead"><b>노란 칸에 한 줄 적기</b><span class="muted small">종이 일지 한 줄처럼 · 칸 사이 Tab · 저장 Enter</span></div><div class="egrid">'+
+    F('일자 <span class="need">꼭</span>','<input class="in" type="date" id="rDate" value="'+date+'" max="'+today()+'" aria-label="일자">')+
+    F('출발 시간 <span class="need">꼭</span>',timeSel('rST',k.startTime,'출발 시간'),'wide')+
+    F('도착 시간 <span class="need">꼭</span>',timeSel('rET',k.endTime,'도착 시간'),'wide')+
+    F('운행 목적','<select class="in" id="rPurpose" aria-label="운행 목적">'+PURPOSES.map(function(p){return opt(p,k.purpose||'등원');}).join('')+'</select><input class="in" id="rDest" value="'+esc(k.dest||'')+'" placeholder="목적지(선택)" aria-label="목적지">')+
+    F('출발 km → 도착 km <span class="need">꼭</span>','<input class="in num" id="rStart" inputmode="numeric" value="'+odo+'" aria-label="출발 km"><input class="in num" id="rEnd" inputmode="numeric" placeholder="도착 km" aria-label="도착 km">')+
+    F('운전자 <span class="need">꼭</span>','<input class="in" id="rDriver" value="'+esc(k.driver||LS.get('cj.driver','')||me||names[0]||'')+'" list="rNames" aria-label="운전자"><label class="ck"><input type="checkbox" id="rDrvOk">운전자 확인</label>')+
+    F('동승자','<input class="in" id="rGuard" value="'+esc(k.guardian||'')+'" list="rNames" placeholder="함께 탄 선생님" aria-label="동승자"><label class="ck"><input type="checkbox" id="rGuardOk">동승자 확인</label><datalist id="rNames">'+names.map(function(n){return '<option value="'+esc(n)+'">';}).join('')+'</datalist>')+
+    F('차량 점검','<label class="ck"><input type="checkbox" id="rChk">이상 없음 ('+CHECKS.length+'항목)</label><input class="in" id="rNote" placeholder="이상 있으면 적기" aria-label="점검에서 이상이 있던 내용">')+
+    F('탑승 아동','<input class="in num" id="rRiders" inputmode="numeric" value="'+(k.riders!=null?k.riders:'')+'" placeholder="0" aria-label="탑승 아동 수">','narrow')+
+    '</div><div class="row"><div id="rowErr" class="grow" role="alert"></div><button type="button" class="btn main" data-act="row-save">노란 칸 저장하기 (Enter)</button></div></div>';
 }
 function saveRow(){
   var a=numVal('rStart'), b=numVal('rEnd');
   var f={vid:curVid(),date:$('rDate').value,startTime:$('rST').value,endTime:$('rET').value,driver:$('rDriver').value.trim(),purpose:$('rPurpose').value||'기타',dest:$('rDest').value.trim(),
     startKm:isNaN(a)?'':a,endKm:isNaN(b)?'':b,riders:numVal('rRiders')||0,guardian:$('rGuard').value.trim(),drvOk:$('rDrvOk').checked,guardOk:$('rGuardOk').checked,
     checks:$('rChk').checked?CHECKS.map(function(c){return c.k;}):[],checkNote:$('rNote').value.trim(),memo:''};
-  var err=tripError(f,null);
+  var err=tripError(f,null,'r');
   if(err){$('rowErr').innerHTML='<div class="err">'+err+'</div>';return;}
   // 다음 줄에는 같은 날짜·목적·운전자·동승자를 남겨 둔다 (종이 일지를 옮겨 적을 때 편하게)
   rowKeep={date:f.date,purpose:f.purpose,driver:f.driver,guardian:f.guardian,riders:f.riders};
   var msg=commitTrip(null,f,rowOpenedAt||Date.now()); rowOpenedAt=0;
-  ui.month=f.date.slice(0,7); render(); toast(msg); try{$('rST_h').focus();}catch(e){}
+  ui.month=f.date.slice(0,7); render(); toast(msg); try{$('rST_box').querySelector('[data-act=ampm]').focus();}catch(e){}
 }
 function delTrip(id){
   var old=S.trips[id]; if(!old) return;
@@ -526,7 +548,7 @@ var HELP=[
   '<b>[모두 이상 없음]</b>, 운전자 확인, 동승자 확인에 표시하고 <b>[저장하기]</b>를 꼭 눌러 주세요.']],
  ['종이 일지와 함께 쓰기 (PC)',[
   '지금처럼 종이에 먼저 적어도 괜찮아요.',
-  'PC에서 <b>[운행일지]</b> 탭을 열면 표 맨 아래에 <b>노란 줄</b>이 있어요. 종이 일지를 보며 한 줄씩 옮겨 적고 <span class="key">Enter</span>를 누르면 저장돼요. 칸 사이는 <span class="key">Tab</span>으로 옮겨요.',
+  'PC에서 <b>[운행일지]</b> 탭을 열면 표 바로 아래에 <b>노란 칸</b>이 있어요. 종이 일지를 보며 한 줄씩 옮겨 적고 <span class="key">Enter</span>를 누르면 저장돼요. 칸 사이는 <span class="key">Tab</span>으로 옮겨요.',
   '저장하면 같은 날짜·운전자·동승자가 다음 줄에 남아 있어서 여러 줄을 빨리 적을 수 있어요.']],
  ['주유·정비 영수증 붙이기',[
   '<b>[점검·정비]</b> 탭 → <b>[+ 주유·구입 기록하기]</b>에서 금액을 적고 <b>[저장하고 영수증 양식 인쇄]</b>를 눌러요.',
@@ -800,6 +822,7 @@ function setLock(on){
 
 /* ============ 7. 누르기 처리 ============ */
 document.addEventListener('click',function(ev){
+  document.querySelectorAll('details.menu[open]').forEach(function(m){ if(!m.contains(ev.target)||ev.target.closest('.menu-list [data-act]')) m.removeAttribute('open'); });
   var b=ev.target.closest('[data-act]'); if(!b) return; var act=b.dataset.act, v=b.dataset.v;
   switch(act){
     case 'tab': ui.tab=v; render(); window.scrollTo(0,0); break;
@@ -813,6 +836,7 @@ document.addEventListener('click',function(ev){
     case 'claim': doClaim(); break;
     case 'fuel': doFuel(); break;
     case 'help': helpDlg(); break;
+    case 'ampm': (function(){var id=b.dataset.tm; $(id+'_ap').value=v; syncTime(id); if($('dlg').dataset.trip) keepDraft(); if(b.closest('#entryRow')){ rowDirty=true; if(!rowOpenedAt) rowOpenedAt=Date.now(); } var n=$(id+'_box').querySelector('.next select'); if(n) n.focus();})(); break;
     case 'pin-eye': (function(){var i=$(v), show=i.type==='password'; i.type=show?'text':'password'; b.setAttribute('aria-pressed',show); b.setAttribute('aria-label',show?'암호 가리기':'암호 보이기'); b.innerHTML=EYE[show?1:0]; i.focus();})(); break;
     case 'help-print': printHelp(); break;
     case 'veh-pick': ui.vid=v; LS.set('cj.ui',{vid:v}); render(); break;
@@ -885,7 +909,7 @@ document.addEventListener('toggle',function(ev){ if(ev.target.id==='careFold') L
 $('restoreFile').addEventListener('change',function(ev){ if(ev.target.files[0]) doRestore(ev.target.files[0]); });
 $('dlg').addEventListener('cancel',function(ev){ev.preventDefault(); if($('dlg').dataset.trip) closeTrip(); else if(!$('pinIn')) closeDlg();});
 // 운행 기록을 쓰다가 화면을 닫으려 하면 브라우저가 한 번 더 묻는다
-window.addEventListener('beforeunload',function(ev){ if(tripDirty){ ev.preventDefault(); ev.returnValue=''; } });
+window.addEventListener('beforeunload',function(ev){ if(tripDirty||rowDirty){ ev.preventDefault(); ev.returnValue=''; } });
 $('dlg').addEventListener('submit',function(ev){ev.preventDefault();});
 window.CJ={buildHwpx:buildHwpx,itemStatus:itemStatus,allAlerts:allAlerts,makeExamples:makeExamples,odoOf:odoOf,ITEMS:ITEMS,state:function(){return S;},outbox:function(){return outbox;}};
 setSync(); render(); boot();

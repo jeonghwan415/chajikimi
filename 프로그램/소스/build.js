@@ -1,7 +1,8 @@
 // 소스(src/)를 묶어 세 가지 판을 만든다: node build.js
 const fs=require('fs'),path=require('path');const src=f=>fs.readFileSync(path.join(__dirname,'src',f),'utf8');
 const rules=src('rules.js');
-const body=src('page.html').replace('/*@RULES*/',()=>rules).replace('/*@UI*/',()=>src('hwpx_base.js')+src('hwpx.js')+src('ui.js'));
+const VER='v4.2 (2026-11-13)';   // 고칠 때마다 올린다. 화면 맨 아래에 보여서 새 판이 배포됐는지 알 수 있다
+const body=src('page.html').replace('/*@VER*/',()=>VER).replace('/*@RULES*/',()=>rules).replace('/*@UI*/',()=>src('hwpx_base.js')+src('hwpx.js')+src('ui.js'));
 fs.writeFileSync(path.join(__dirname,'app.html'),body);                       // Claude 웹 링크판 (게시용 본문)
 const doc='<!DOCTYPE html>\n<html lang="ko">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>\n</head>\n<body>\n'+body+'\n</body>\n</html>\n';
 fs.mkdirSync(path.join(__dirname,'build'),{recursive:true});
