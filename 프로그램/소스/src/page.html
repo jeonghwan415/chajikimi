@@ -212,6 +212,9 @@ tr.entry label{display:flex;gap:6px;align-items:center;font-size:.9rem;font-weig
 tr.entry input[type=checkbox]{width:20px;height:20px;accent-color:var(--navy)}
 .entryhelp{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
 .credit{text-align:center;color:var(--ink2);font-size:.85rem;padding:18px 0 8px;border-top:1px solid var(--line)}
+/* 시간 고르기 (시 + 5분 단위 분) */
+.tsel{display:flex;gap:8px} .tsel select{flex:1;min-width:0}
+tr.entry .tsel{flex-direction:column;gap:6px;width:116px} tr.entry .tsel select{width:100%}
 /* 암호 칸 + 눈 단추 */
 .pinbox{position:relative}
 .pinbox .in{padding-right:64px}
