@@ -1,0 +1,24 @@
+// 구글 시트판 서버 코드 테스트: node gastest.js
+const assert=require('assert');const M=require('./gasmock')();
+const call=o=>JSON.parse(M.api.api(JSON.stringify(o)));let n=0;const t=(name,f)=>{f();n++;};
+t('처음에는 암호가 없다',()=>assert.equal(call({op:'status'}).data.hasPin,false));
+t('암호 없이는 읽을 수 없다',()=>assert.equal(call({op:'getAll'}).err,'pin'));
+t('짧은 암호는 거절',()=>assert.equal(call({op:'setPin',newPin:'12'}).ok,false));
+t('암호 정하기',()=>{assert.equal(call({op:'setPin',newPin:'2468'}).ok,true);assert.equal(call({op:'status'}).data.hasPin,true);assert.ok(!/2468/.test(JSON.stringify(M.props)));});
+t('암호가 정해진 뒤에는 암호 없이 다시 정할 수 없다',()=>assert.equal(call({op:'setPin',newPin:'0000'}).err,'pin'));
+t('틀린 암호 거절, 맞는 암호 통과',()=>{assert.equal(call({op:'getAll',pin:'1111'}).err,'pin');assert.equal(call({op:'getAll',pin:'2468'}).ok,true);});
+const P={pin:'2468',by:'김선생'};
+t('저장·읽기',()=>{call({...P,op:'put',c:'vehicles',id:'v1',data:{name:'노랑버스',baseOdo:61200,inspDate:'2026-12-05'}});call({...P,op:'put',c:'trips',id:'t1',data:{vid:'v1',date:'2026-11-10',driver:'김선생',purpose:'등원',startKm:61200,endKm:61214,startTime:'13:30',endTime:'14:05',drvOk:true,guardOk:false,checks:['tire','lamp','belt','door','sleep','off']}});
+  const d=call({...P,op:'getAll'}).data;assert.equal(d.vehicles.v1.name,'노랑버스');assert.equal(d.trips.t1.endKm,61214);const row=M.sheets['운행일지'].rows[1];assert.equal(row[2],'13:30');assert.equal(row[8],14);assert.equal(row[10],'확인');assert.equal(row[12],'');assert.equal(row[13],'이상 없음 (6항목 점검)');});
+t('수정하면 이력이 남는다',()=>{call({...P,op:'put',c:'trips',id:'t1',data:{vid:'v1',date:'2026-11-10',driver:'김선생',purpose:'하원',startKm:61200,endKm:61216}});const h=M.sheets['변경이력'].rows;assert.equal(h.length,3);assert.equal(h[2][4],'수정');assert.equal(h[2][1],'김선생');assert.ok(/61214/.test(h[2][5]));assert.equal(M.sheets['운행일지'].rows.length,2);});
+t('마감한 달은 서버가 막는다',()=>{call({...P,op:'put',c:'settings',id:'center',data:{center:'별빛',locks:['2026-11']}});assert.equal(call({...P,op:'put',c:'trips',id:'t1',data:{vid:'v1',date:'2026-11-10',startKm:1,endKm:2}}).err,'locked');assert.equal(call({...P,op:'del',c:'trips',id:'t1'}).err,'locked');assert.equal(call({...P,op:'put',c:'trips',id:'t2',data:{vid:'v1',date:'2026-11-11',startKm:1,endKm:2}}).err,'locked');assert.equal(call({...P,op:'put',c:'trips',id:'t3',data:{vid:'v1',date:'2026-12-01',driver:'이',startKm:61216,endKm:61230}}).ok,true);});
+t('삭제',()=>{call({...P,op:'del',c:'trips',id:'t3'});assert.equal(Object.keys(call({...P,op:'getAll'}).data.trips).length,1);});
+t('알림 메일: 곧 챙길 것만, 설정한 주소에도',()=>{call({...P,op:'put',c:'settings',id:'center',data:{center:'별빛',locks:[],emails:'a@example.com, b@example.com'}});
+  const txt=M.api.reminderText_(M.api.readAll_(),'2026-11-11');assert.ok(/정기검사/.test(txt)&&/24일 남음/.test(txt)&&/가을철 관리/.test(txt));M.api.sendReminder();assert.ok(/owner@example.com,a@example.com,b@example.com/.test(M.getMail().to));});
+t('의견은 의견 시트에만 쌓이고 화면으로 돌아가지 않는다',()=>{assert.equal(call({...P,op:'put',c:'feedback',id:'f1',data:{at:'2026-11-11',by:'김',ease:4,oldTime:'1~3분',confusing:'동승자 확인',avgSecs:52}}).ok,true);const r=M.sheets['의견'].rows;assert.equal(r[1][3],4);assert.equal(r[1][5],'동승자 확인');assert.equal(call({...P,op:'getAll'}).data.feedback,undefined);});
+t('작성 시간이 운행일지 시트에 남는다',()=>{call({...P,op:'put',c:'trips',id:'t9',data:{vid:'v1',date:'2026-12-02',driver:'이',startKm:61230,endKm:61240,secs:48}});const row=M.sheets['운행일지'].rows.find(x=>x[0]==='t9');assert.equal(row[17],48);});
+t('여러 건 한 번에 쓰기 (예시 넣기)',()=>{const items=[];for(let i=0;i<20;i++)items.push({c:'trips',id:'m'+i,data:{vid:'v1',date:'2026-12-0'+(i%9+1),startKm:1,endKm:2}});items.push({c:'services',id:'ms',data:{vid:'v1',item:'oil',date:'2026-12-01',km:1}});const r=call({...P,op:'putMany',items});assert.equal(r.data.done,21);assert.equal(Object.keys(call({...P,op:'getAll'}).data.trips).filter(k=>k[0]==='m').length,20);const del=call({...P,op:'putMany',items:items.map(x=>({c:x.c,id:x.id,data:null}))});assert.equal(del.data.done,21);});
+t('여러 건 쓰기도 마감한 달은 거절',()=>{call({...P,op:'put',c:'settings',id:'center',data:{locks:['2027-01']}});const r=call({...P,op:'putMany',items:[{c:'trips',id:'L1',data:{vid:'v1',date:'2027-01-05',startKm:1,endKm:2}},{c:'trips',id:'L2',data:{vid:'v1',date:'2027-02-05',startKm:1,endKm:2}}]});assert.equal(r.data.done,1);assert.deepEqual(r.data.failed,['L1']);call({...P,op:'put',c:'settings',id:'center',data:{locks:[]}});call({...P,op:'del',c:'trips',id:'L2'});});
+t('10번 틀리면 잠긴다',()=>{for(let i=0;i<10;i++)call({op:'getAll',pin:'0000'});assert.equal(call({op:'getAll',pin:'2468'}).err,'lock');});
+t('화면이 들어 있다',()=>assert.ok(/차량 지킴이/.test(M.api.doGet().html)));
+console.log('구글 시트판 서버 테스트 '+n+'개 통과');

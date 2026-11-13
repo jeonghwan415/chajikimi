@@ -1,0 +1,11 @@
+# 만들 때 생기는 파일 (node build.js로 다시 만든다)
+프로그램/소스/build/
+프로그램/소스/shots/
+프로그램/소스/app.html
+프로그램/_to_delete/
+node_modules/
+# 워드·한글이 열려 있을 때 생기는 임시 파일
+~$*
+*.tmp
+desktop.ini
+.DS_Store
