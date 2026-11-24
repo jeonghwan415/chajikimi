@@ -1,0 +1,46 @@
+# 정식판 사이트 — main에 올리면 소스로 차량 지킴이를 만들어 GitHub Pages에 배포해요
+# 주소: https://jeonghwan415.github.io/chajikimi/  (기한 없음 · 기록은 쓰는 사람 기기에만, 센터 계정을 연결하면 센터와 함께)
+name: Pages 배포
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  # 1) 만들기 — 배포와 단계를 나눠 묶음이 등록될 시간을 줘요
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: 정식판 만들기
+        working-directory: 프로그램/소스
+        run: |
+          node build.js
+          mkdir -p ../../_site
+          cp build/index.html ../../_site/index.html
+          touch ../../_site/.nojekyll
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+  # 2) 배포
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 묶음 등록 기다리기
+        run: sleep 30
+      - id: deployment
+        uses: actions/deploy-pages@v5
