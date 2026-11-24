@@ -10,3 +10,7 @@ node_modules/
 desktop.ini
 .DS_Store
 .court/
+
+# 실제 시범 사용 주소가 들어 있는 파일 (공개 저장소에 올리지 않음, 이 컴퓨터에만)
+차량 지킴이 열기.url
+프로그램/접속_QR.png
