@@ -48,6 +48,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .sync i{width:10px;height:10px;border-radius:50%;background:currentColor;flex:none}
 .sync.on{background:var(--ok-bg);color:var(--ok)}
 .sync.local{background:var(--soon-bg);color:var(--soon)}
+/* v4.3 머리말 도구: 둘러보기 · 글자 크기 · 화면 밝기 · 센터 계정 */
+.topr .cc-zoom{min-height:40px;padding:0 12px;font-size:.92rem;background:var(--surface);color:var(--ink2);border-color:var(--line)}
+@media (max-width:640px){ .topr .cc-lbl{display:none} #themeBtn{display:none} .topr .cc-chip .cc-t{max-width:48vw} }
 
 /* 탭 */
 .tabs{display:flex;gap:6px;border-bottom:2px solid var(--line)}
@@ -282,7 +285,7 @@ select.in{appearance:auto}
       <svg width="46" height="34" viewBox="0 0 46 34" aria-hidden="true"><rect x="1" y="5" width="42" height="21" rx="5" fill="#ffc400"/><rect x="5" y="9" width="9" height="8" rx="1.5" fill="#16233a"/><rect x="16" y="9" width="9" height="8" rx="1.5" fill="#16233a"/><rect x="27" y="9" width="12" height="8" rx="1.5" fill="#16233a"/><rect x="1" y="19" width="42" height="3" fill="#16233a"/><circle cx="12" cy="27" r="5" fill="#16233a"/><circle cx="12" cy="27" r="2" fill="#cfd6e0"/><circle cx="33" cy="27" r="5" fill="#16233a"/><circle cx="33" cy="27" r="2" fill="#cfd6e0"/></svg>
       <div><b>차량 지킴이</b><br><span id="centerName">지역아동센터 차량 점검 알림 · 운행일지</span></div>
     </div>
-    <div class="topr"><button class="btn sm" data-act="help">사용 방법</button><button class="btn sm fb" id="fbBtn" data-act="fb" hidden>의견 보내기</button><div class="sync" id="sync" role="status"><i></i><span>불러오는 중…</span></div></div>
+    <div class="topr"><button class="btn sm" data-act="help">사용 방법</button><button class="btn sm" id="tourBtn" type="button" aria-label="둘러보기">? <span class="cc-lbl">둘러보기</span></button><button type="button" id="zoomBtn"></button><button type="button" id="themeBtn"></button><button class="btn sm fb" id="fbBtn" data-act="fb" hidden>의견 보내기</button><div class="sync" id="sync" role="status"><i></i><span>불러오는 중…</span></div><button type="button" id="ccChip" hidden></button></div>
   </div>
   <div class="tabs" role="tablist" id="tabs"></div>
   <div id="view" role="tabpanel"></div>
@@ -292,6 +295,14 @@ select.in{appearance:auto}
 <input type="file" id="restoreFile" accept=".json,application/json" hidden>
 <div id="printArea"></div>
 
+<script>
+/* 센터 계정(B) 서버 정보 — 관리자가 Supabase 프로젝트를 만든 뒤 여기에 넣어요(src/page.html). 프로그램 서포터·6대 의무교육 도우미와 같은 프로젝트를 써도 돼요.
+   anonKey는 공개용 키(anon public)라서 올려도 괜찮아요. service_role 키는 절대 넣지 마세요. (supabase/센터계정_설정안내.md) */
+window.CENTER_CLOUD_CONFIG = { url: "", anonKey: "" };
+</script>
+<script>
+/*@CC*/
+</script>
 <script>
 'use strict';
 /*@RULES*/
