@@ -27,7 +27,7 @@ jobs:
           cmp build/Code.gs ../구글시트_배포판/Code.gs || (echo "::error::구글시트_배포판/Code.gs가 소스와 달라요." && exit 1)
       - name: Playwright 설치
         run: |
-          npm init -y >/dev/null
+          echo '{"name":"cj-tests","private":true}' > package.json
           npm install --no-save playwright
           npx playwright install --with-deps chromium
       - name: 테스트
