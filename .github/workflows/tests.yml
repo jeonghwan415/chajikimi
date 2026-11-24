@@ -1,0 +1,40 @@
+# 자동 검사 — main에 올리거나 PR을 열면 돌아요. 하나라도 실패하면 빨간 X로 표시돼요.
+# 소스(src/)로 세 판을 다시 만들고, 올려 둔 파일판(차량지킴이.html)·구글 시트판(Code.gs)이 소스와 같은지 확인한 뒤 테스트를 모두 돌려요.
+name: tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: 프로그램/소스
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: 만들기 + 올려 둔 파일이 소스와 같은지
+        run: |
+          node build.js
+          cmp build/차량지킴이.html ../차량지킴이.html || (echo "::error::프로그램/차량지킴이.html이 소스와 달라요. node build.js 뒤 build/차량지킴이.html을 복사해 주세요." && exit 1)
+          cmp build/Code.gs ../구글시트_배포판/Code.gs || (echo "::error::구글시트_배포판/Code.gs가 소스와 달라요." && exit 1)
+      - name: Playwright 설치
+        run: |
+          npm init -y >/dev/null
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: 테스트
+        run: |
+          node src/rules.test.js
+          node gastest.js
+          node test.js
+          node localtest.js
+          node hwpxtest.js
+          node trialtest.js

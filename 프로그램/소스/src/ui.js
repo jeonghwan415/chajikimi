@@ -968,6 +968,8 @@ if(window.CC&&!window.CC_DISABLED){
   document.documentElement.classList.add('cc-dark-ok');
   CC.mountZoom($('zoomBtn')); CC.mountTheme($('themeBtn'));
   CC.init({ app:'chajikimi', appName:'차량지킴이', custom:true, chip:$('ccChip'), onEnter:centerEnter,
+    wipe:{prefixes:['cj.']}, backup:doBackup, localText:function(){ return '차량 '+Object.keys(S.vehicles).length+'대 · 운행 기록 '+Object.keys(S.trips).length+'건'; },   // [이 컴퓨터 기록 모두 지우기]
+    privacyNote:'운전자·동승자 이름과 운행·정비 기록이 여기에 저장돼요.',
     onSignOut:function(){ LS.set('cj.outbox',[]); try{localStorage.removeItem('cj.center');}catch(e){} },
     keyLabel:function(k){ return ({trips:'운행 기록',services:'점검·정비 기록',vehicles:'차량',drivers:'운전자',settings:'설정'})[k.split('/')[0]]||k; } });
   var TOUR=[
