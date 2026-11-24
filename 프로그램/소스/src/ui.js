@@ -9,7 +9,11 @@ var outbox=LS.get('cj.outbox',[]);          // 보내지 못한 기록. 인터�
 var me=LS.get('cj.me','');                   // 이 기기를 쓰는 사람 이름 (누가 적었는지 남기는 데 씀)
 function newId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
 function setSync(){
-  var el=document.getElementById('sync'), t={loading:['','불러오는 중…'],cloud:['on','PC·휴대폰 함께 저장 중'],sheet:['on','구글 시트에 저장 중'],local:['local','이 기기에만 저장']}[store.mode];
+  var el=document.getElementById('sync'), t={loading:['','불러오는 중…'],cloud:['on','PC·휴대폰 함께 저장 중'],sheet:['on','구글 시트에 저장 중'],local:['local','이 기기에만 저장'],center:['on','센터 계정에 저장 중']}[store.mode];
+  // v4.3 파일판·센터 계정판은 [센터 계정] 단추가 저장 상태를 함께 보여 줌. 구글 시트판·Claude 링크판은 예전 표시 그대로
+  var chip=document.getElementById('ccChip'), useChip=!!(window.CC&&!window.CC_DISABLED&&(store.mode==='local'||store.mode==='center'||store.mode==='loading'));
+  if(chip){ chip.hidden=!useChip; el.hidden=useChip; }
+  if(store.mode==='center'&&window.CC) CC.setStatus(outbox.length?(navigator.onLine===false?'offline':'pending'):'ok', outbox.length);
   if(outbox.length&&store.mode!=='local') t=['local','보내지 못한 기록 '+outbox.length+'건 · 다시 보내는 중'];
   el.className='sync '+t[0]; el.lastElementChild.textContent=t[1];
   var fb=document.getElementById('fbBtn'); if(fb) fb.hidden=!(store.mode==='sheet'||store.mode==='cloud');
@@ -56,6 +60,53 @@ function putMany(items,done){
 }
 function del(c,id){ applyOp({c:c,id:id,data:null}); send({c:c,id:id,data:null}); }
 
+/* --- v4.3 센터 계정판 (Supabase): 기록 하나 = 서버의 한 줄(c/id). 받은 것은 이 기기에 보관해서 인터넷이 끊겨도 보임 --- */
+var cen=null;
+function useCenter(){
+  var c=CC.center(); cen=LS.get('cj.center',null);
+  if(!cen||cen.center!==c.id) cen={center:c.id,since:null,rows:{}};
+  function save(){ LS.set('cj.center',cen); }
+  function build(){
+    var d={vehicles:{},trips:{},services:{},drivers:{},settings:{}};
+    Object.keys(cen.rows).forEach(function(k){ var i=k.indexOf('/'), col=k.slice(0,i), id=k.slice(i+1), v=cen.rows[k]; if(v==null||!/^[\w.:-]{1,100}$/.test(id)) return; if(col==='settings') d.settings=v; else if(d[col]) d[col][id]=v; });
+    if(!d.settings.center) d.settings.center=c.name;
+    setAll(d);
+  }
+  build();
+  store={mode:'center', raw:function(op){
+    var key=op.c==='settings'?'settings/center':op.c+'/'+op.id;
+    return CC.push('chajikimi',[{key:key,value:op.data||null}]).then(function(){ cen.rows[key]=op.data||null; save(); CC.setStatus(outbox.length?'pending':'ok',outbox.length); },
+      function(e){ if(e&&e.retry){ CC.setStatus('offline',outbox.length+1); throw {retry:true}; } throw {msg:(e&&e.msg)||'저장하지 못했어요.'}; });
+  }};
+  function pull(){
+    if(flush.busy) return;
+    var since=cen.since?new Date(new Date(cen.since).getTime()-3000).toISOString():null;
+    CC.pull('chajikimi',since).then(function(rows){
+      var who={}, uid=(CC.user()||{}).id;
+      rows.forEach(function(r){ cen.rows[r.key]=r.value; if(!cen.since||r.updated_at>cen.since) cen.since=r.updated_at; if(r.updated_by&&r.updated_by!==uid&&r.updated_name) who[r.updated_name]=1; });
+      save(); if(rows.length){ build(); if(canRedraw()) render(); }
+      if(Object.keys(who).length&&since) toast(Object.keys(who).join(', ')+' 선생님이 고친 기록을 받았어요.');
+      CC.setStatus(outbox.length?'pending':'ok',outbox.length); flush();
+    },function(e){ CC.setStatus(e&&e.offline?'offline':'error',outbox.length,e&&e.msg); });
+  }
+  setSync(); render(); pull(); setInterval(function(){ if(!document.hidden) pull(); },20000); setInterval(flush,30000);
+  window.addEventListener('online',function(){ flush(); pull(); }); window.addEventListener('focus',pull);
+}
+// 센터에 처음 들어올 때: 이 기기(파일판) 기록을 센터에 합칠지 묻는다. 이 기기 기록(cj.data)은 지우지 않고 그대로 둔다
+function centerEnter(){
+  var d=LS.get('cj.data',null), items=[];
+  if(d) ['vehicles','trips','services','drivers'].forEach(function(c){ Object.keys(d[c]||{}).forEach(function(id){ items.push({key:c+'/'+id,value:d[c][id]}); }); });
+  if(!items.length){ location.reload(); return; }
+  CC.ask('이 기기에 있던 기록','<p>이 기기에 <b>'+items.length+'건</b>의 기록(차량·운행·정비·운전자)이 있어요. <b>'+esc(CC.center().name)+'</b> 기록에 합칠까요?</p><ul class="cc-list"><li><b>합치기</b>: 센터 선생님들이 함께 봐요.</li><li><b>합치지 않기</b>: 이 기기 기록은 그대로 두고(로그아웃하면 다시 보여요), 센터 기록만 봐요.</li></ul>',
+    [{t:'합치기',v:'merge',main:true},{t:'합치지 않기',v:'keep'}]).then(function(v){
+    if(v!=='merge'){ location.reload(); return; }
+    CC.pull('chajikimi',null).then(function(rows){
+      var hasSet=rows.some(function(r){return r.key==='settings/center'&&r.value;});
+      if(!hasSet&&d.settings) items.push({key:'settings/center',value:d.settings});
+      return CC.push('chajikimi',items);
+    }).then(function(){ toast('이 기기 기록을 센터에 합쳤어요.'); setTimeout(function(){location.reload();},700); },function(e){ toast((e&&e.msg)||'합치지 못했어요. 다시 해 주세요.'); });
+  });
+}
 function useLocal(){
   var d=LS.get('cj.data',null); outbox=[]; if(d) setAll(d);
   store={mode:'local', raw:function(){ LS.set('cj.data',{schema:SCHEMA,vehicles:S.vehicles,trips:S.trips,services:S.services,drivers:S.drivers,settings:S.settings}); return Promise.resolve(); }};
@@ -137,6 +188,7 @@ function boot(){
     window.claude.use('db').then(function(db){ if(db) useCloud(db); else useLocal(); });
     return;
   }
+  if(window.CC&&!window.CC_DISABLED&&CC.isCenter()){useCenter();return;}
   useLocal();
 }
 
@@ -912,4 +964,20 @@ $('dlg').addEventListener('cancel',function(ev){ev.preventDefault(); if($('dlg')
 window.addEventListener('beforeunload',function(ev){ if(tripDirty||rowDirty){ ev.preventDefault(); ev.returnValue=''; } });
 $('dlg').addEventListener('submit',function(ev){ev.preventDefault();});
 window.CJ={buildHwpx:buildHwpx,itemStatus:itemStatus,allAlerts:allAlerts,makeExamples:makeExamples,odoOf:odoOf,ITEMS:ITEMS,state:function(){return S;},outbox:function(){return outbox;}};
+if(window.CC&&!window.CC_DISABLED){
+  document.documentElement.classList.add('cc-dark-ok');
+  CC.mountZoom($('zoomBtn')); CC.mountTheme($('themeBtn'));
+  CC.init({ app:'chajikimi', appName:'차량지킴이', custom:true, chip:$('ccChip'), onEnter:centerEnter,
+    onSignOut:function(){ LS.set('cj.outbox',[]); try{localStorage.removeItem('cj.center');}catch(e){} },
+    keyLabel:function(k){ return ({trips:'운행 기록',services:'점검·정비 기록',vehicles:'차량',drivers:'운전자',settings:'설정'})[k.split('/')[0]]||k; } });
+  var TOUR=[
+    {title:'차량 지킴이에 오신 걸 환영해요',body:['차량 <b>점검 시기</b>를 한 화면에서 알려 주고 <b>운행일지</b>를 쉽게 적는 도구예요.','[다음]을 눌러 둘러보세요. (키보드 → 다음, Esc 닫기)']},
+    {target:'#tabs',title:'네 개의 탭',body:['<b>오늘</b>: 운행 기록·바로 적기 · <b>운행일지</b>: 달마다 인쇄·마감 · <b>점검·정비</b>: 교환 기록·알림 · <b>설정</b>: 센터·운전자']},
+    {target:'#view .btn.main, #view button',title:'매일 할 일은 하나',body:['운행을 마치면 <b>[오늘 운행 기록하기]</b>를 누르고 도착 km만 적으면 돼요.']},
+    {target:'#ccChip',title:'어디에 저장되나요?',body:['지금은 <b>이 기기에만</b> 저장돼요.','누르면 <b>센터 계정</b>으로 바꿔 PC·휴대폰·다른 선생님과 함께 쓸 수 있어요.']},
+    {target:'#zoomBtn',title:'글씨가 작으면',body:['누를 때마다 글자가 커져요.','자세한 설명은 <b>[사용 방법]</b>, 이 안내는 <b>[? 둘러보기]</b>로 다시 볼 수 있어요.']}
+  ];
+  $('tourBtn').addEventListener('click',function(){ ui.tab='home'; render(); CC.tour(TOUR,'cj',true); });
+  if(!navigator.webdriver&&!window.TRIAL) setTimeout(function(){ CC.tour(TOUR,'cj'); },900);
+} else { ['ccChip','zoomBtn','themeBtn','tourBtn'].forEach(function(id){ var e=$(id); if(e) e.hidden=true; }); }
 setSync(); render(); boot();
