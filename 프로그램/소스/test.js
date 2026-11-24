@@ -112,7 +112,7 @@ async function setT(pg,id,v){const H=+v.slice(0,2);await pg.click(`[data-act=amp
   assert.match(pr,/차량 운행일지/);assert.match(pr,/지출 내역/);assert.match(pr,/137,000원/);assert.equal((pr.match(/class="rc"/g)||[]).length,2);ok('청구용 인쇄: 운행일지 + 지출 내역(합계) + 영수증 양식 2장');
   await q.click('[data-act=help]');const ht=await q.locator('#dlg').innerText();assert.match(ht,/바탕화면/);assert.match(ht,/홈 화면에 추가/);assert.match(ht,/바로가기 만들기/);
   await q.click('[data-act=help-print]');pr=await q.evaluate(()=>window.__printed);assert.match(pr,/차량 지킴이 사용 방법/);await q.click('#dlg footer [data-act=dlg-close]');ok('사용 방법: 바탕화면·홈 화면에 두는 법, 인쇄');
-  await q.click('#tab-home');await q.click('#careFold summary');await q.reload();await q.waitForTimeout(300);assert.notEqual(await q.locator('#careFold').getAttribute('open'),null);ok('점검 폴더를 펼친 상태를 기억');
+  await q.click('#tab-home');await q.click('#careFold summary');await q.waitForFunction(()=>localStorage.getItem('cj.fold')==='true');await q.reload();await q.waitForTimeout(300);assert.notEqual(await q.locator('#careFold').getAttribute('open'),null);ok('점검 폴더를 펼친 상태를 기억');
   await q.screenshot({path:'shots/v4_home.png',fullPage:true});
 
   /* ---------- 2. 구글 시트판: 로그인 없이 휴대폰 → PC ---------- */
