@@ -3,7 +3,7 @@ const {chromium}=require('playwright');const assert=require('assert');
 const FILE='file://'+__dirname+'/build/index.html';
 (async()=>{
   const b=await chromium.launch();const errs=[];let n=0;const ok=m=>{n++;console.log('  통과: '+m);};
-  const c=await b.newContext({viewport:{width:1180,height:900},acceptDownloads:true});const p=await c.newPage();
+  const c=await b.newContext({viewport:{width:1180,height:900},acceptDownloads:true});await c.addInitScript(()=>{Object.defineProperty(window, 'CENTER_CLOUD_CONFIG', { configurable: true, get() { return { url: '', anonKey: '' }; }, set() {} });});const p=await c.newPage();
   p.on('pageerror',e=>errs.push(e.message));p.on('dialog',d=>{errs.push('브라우저 기본 창: '+d.message());d.dismiss();});
   await p.goto(FILE);await p.waitForTimeout(400);await p.click('[data-act=ex-add]');await p.waitForTimeout(300);await p.click('#zoomBtn');
   assert.ok(await p.evaluate(()=>!!localStorage.getItem('cj.data')));
